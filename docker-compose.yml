@@ -10,12 +10,17 @@ services:
     env_file:
       - .env
   api:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "8080"
     env_file:
       - .env
-    restart: on-failure
+    depends_on:
+      - postgres
+    volumes:
+      - .:/app
   nginx:
     build: ./nginx
     ports:
