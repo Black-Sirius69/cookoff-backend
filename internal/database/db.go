@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	config "github.com/CodeChefVIT/cookoff-backend/config"
+	config "github.com/CodeChefVIT/cookoff-backend/common/config"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"

@@ -2,49 +2,57 @@ package main
 
 import (
 	"log"
+	"net/http"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/fiber/v2/middleware/logger"
-
-	config "github.com/CodeChefVIT/cookoff-backend/config"
+	config "github.com/CodeChefVIT/cookoff-backend/common/config"
 	"github.com/CodeChefVIT/cookoff-backend/internal/database"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 )
 
 func main() {
-	app := fiber.New()
+	app := echo.New()
 
-	config, err := config.LoadConfig(".")
+	appConfig, err := config.LoadConfig(".")
 	if err != nil {
 		log.Fatalln("Failed to load environment variables! \n", err.Error())
 	}
 
-	database.ConnectDB(&config)
-	database.RunMigrations(database.DB)
+	app.Use(middleware.Logger())
 
-	app.Use(logger.New())
-
-	app.Use(cors.New(cors.Config{
-		AllowOrigins:     config.ClientOrigin,
-		AllowHeaders:     "Origin, Content-Type, Accept",
-		AllowMethods:     "GET, POST, PATCH, DELETE",
+	app.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins:     []string{appConfig.ClientOrigin},
+		AllowMethods:     []string{echo.GET, echo.PUT, echo.POST, echo.DELETE, echo.PATCH},
+		AllowHeaders:     []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
 		AllowCredentials: true,
 	}))
-	// routes.AuthRoutes(apiGroup)
 
-	app.Get("/ping", func(c *fiber.Ctx) error {
-		return c.Status(200).JSON(fiber.Map{
+	database.ConnectDB(&appConfig)
+	database.RunMigrations(database.DB)
+
+	app.HTTPErrorHandler = func(err error, c echo.Context) {
+		code := http.StatusInternalServerError
+		message := "Not found"
+
+		if he, ok := err.(*echo.HTTPError); ok {
+			code = he.Code
+			message = he.Message.(string)
+		}
+
+		app.Logger.Error(err)
+		c.JSON(code, map[string]interface{}{
+			"status":  "false",
+			"code":    code,
+			"message": message,
+		})
+	}
+
+	app.GET("/ping", func(ctx echo.Context) error {
+		return ctx.JSON(http.StatusOK, map[string]interface{}{
+			"status":  "true",
 			"message": "pong",
-			"status":  "Backend up and running",
 		})
 	})
 
-	app.Use(func(c *fiber.Ctx) error {
-		return c.Status(404).JSON(fiber.Map{
-			"status":  "error",
-			"message": "Route not found",
-		})
-	})
-
-	log.Fatal(app.Listen(config.Port))
+	app.Logger.Fatal(app.Start(":8080"))
 }

@@ -5,13 +5,10 @@ RUN apk update && apk upgrade && \
 
 WORKDIR /app
 
-ADD go.mod .
-ADD go.sum .
-
-RUN go mod download
-ADD . .
-
 RUN go install github.com/cosmtrek/air@latest
+
+COPY go.mod go.sum ./
+RUN go mod download
 
 EXPOSE 8080
 
